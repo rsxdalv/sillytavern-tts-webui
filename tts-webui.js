@@ -20,7 +20,7 @@ class TtsWebuiProvider {
         model: 'chatterbox',
         speed: 1,
         volume: 1.0,
-        available_voices: ['random'],
+        available_voices: [''],
         provider_endpoint: 'http://127.0.0.1:7778/v1/audio/speech',
         streaming: false,
         stream_chunk_size: 100,
@@ -446,10 +446,9 @@ class TtsWebuiProvider {
             const responseJson = await response.json();
             console.info('Discovered voices from provider:', responseJson);
 
-            // Handle chatterbox format: {"voices":["Alice.wav","Emmett.wav",...]}
-            this.voices = responseJson.voices.map(voiceFile => ({
-                name: voiceFile.replace(/\.wav$/, ''),
-                voice_id: `voices/chatterbox/${voiceFile}`,
+            this.voices = responseJson.voices.map(({ value, label }) => ({
+                name: label,
+                voice_id: value,
                 lang: 'en-US',
             }));
 

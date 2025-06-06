@@ -1226,8 +1226,7 @@ async function initVoiceMapInternal(unrestricted) {
 
 jQuery(async function () {
     async function addExtensionControls() {
-        // const settingsHtml = $(await renderExtensionTemplateAsync('tts2', 'settings'));
-        const settingsHtml = $(await renderExtensionTemplateAsync('tts', 'settings'));
+        const settingsHtml = $(await renderExtensionTemplateAsync('third-party/sillytavern-extension-tts-webui', 'settings'));
         $('#tts_container').append(settingsHtml);
         $('#tts_refresh').on('click', onRefreshClick);
         $('#tts_enabled').on('click', onEnableClick);

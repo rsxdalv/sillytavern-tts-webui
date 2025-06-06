@@ -1,6 +1,6 @@
-import { getRequestHeaders } from '../../../script.js';
-import { callGenericPopup, POPUP_RESULT, POPUP_TYPE } from '../../popup.js';
-import { findSecret, SECRET_KEYS, secret_state, writeSecret } from '../../secrets.js';
+import { getRequestHeaders } from '../../../../script.js';
+import { callGenericPopup, POPUP_RESULT, POPUP_TYPE } from '../../../popup.js';
+import { findSecret, SECRET_KEYS, secret_state, writeSecret } from '../../../secrets.js';
 import { getPreviewString, saveTtsProviderSettings } from './index.js';
 
 export { TtsWebuiProvider };

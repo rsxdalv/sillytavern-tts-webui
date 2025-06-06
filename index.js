@@ -1,33 +1,14 @@
-import { cancelTtsPlay, eventSource, event_types, getCurrentChatId, isStreamingEnabled, name2, saveSettingsDebounced, substituteParams } from '../../../script.js';
-import { ModuleWorkerWrapper, extension_settings, getContext, renderExtensionTemplateAsync } from '../../extensions.js';
-import { delay, escapeRegex, getBase64Async, getStringHash, onlyUnique } from '../../utils.js';
-import { EdgeTtsProvider } from './edge.js';
-import { ElevenLabsTtsProvider } from './elevenlabs.js';
-import { SileroTtsProvider } from './silerotts.js';
-import { GptSovitsV2Provider } from './gpt-sovits-v2.js';
-import { CoquiTtsProvider } from './coqui.js';
-import { SystemTtsProvider } from './system.js';
-import { NovelTtsProvider } from './novel.js';
-import { power_user } from '../../power-user.js';
-import { OpenAITtsProvider } from './openai.js';
-import { OpenAICompatibleTtsProvider } from './openai-compatible.js';
-import { XTTSTtsProvider } from './xtts.js';
-import { VITSTtsProvider } from './vits.js';
-import { GSVITtsProvider } from './gsvi.js';
-import { SBVits2TtsProvider } from './sbvits2.js';
-import { AllTalkTtsProvider } from './alltalk.js';
-import { CosyVoiceProvider } from './cosyvoice.js';
-import { SpeechT5TtsProvider } from './speecht5.js';
-import { AzureTtsProvider } from './azure.js';
-import { SlashCommandParser } from '../../slash-commands/SlashCommandParser.js';
-import { SlashCommand } from '../../slash-commands/SlashCommand.js';
-import { ARGUMENT_TYPE, SlashCommandArgument, SlashCommandNamedArgument } from '../../slash-commands/SlashCommandArgument.js';
-import { debounce_timeout } from '../../constants.js';
-import { SlashCommandEnumValue, enumTypes } from '../../slash-commands/SlashCommandEnumValue.js';
-import { enumIcons } from '../../slash-commands/SlashCommandCommonEnumsProvider.js';
-import { POPUP_TYPE, callGenericPopup } from '../../popup.js';
-import { GoogleTranslateTtsProvider } from './google-translate.js';
-import { KokoroTtsProvider } from './kokoro.js';
+import { cancelTtsPlay, eventSource, event_types, getCurrentChatId, isStreamingEnabled, name2, saveSettingsDebounced, substituteParams } from '../../../../script.js';
+import { ModuleWorkerWrapper, extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
+import { delay, escapeRegex, getBase64Async, getStringHash, onlyUnique } from '../../../utils.js';
+import { power_user } from '../../../power-user.js';
+import { SlashCommandParser } from '../../../slash-commands/SlashCommandParser.js';
+import { SlashCommand } from '../../../slash-commands/SlashCommand.js';
+import { ARGUMENT_TYPE, SlashCommandArgument, SlashCommandNamedArgument } from '../../../slash-commands/SlashCommandArgument.js';
+import { debounce_timeout } from '../../../constants.js';
+import { SlashCommandEnumValue, enumTypes } from '../../../slash-commands/SlashCommandEnumValue.js';
+import { enumIcons } from '../../../slash-commands/SlashCommandCommonEnumsProvider.js';
+import { POPUP_TYPE, callGenericPopup } from '../../../popup.js';
 import { TtsWebuiProvider } from './tts-webui.js';
 
 const UPDATE_INTERVAL = 1000;
@@ -87,25 +68,25 @@ export function getPreviewString(lang) {
 }
 
 const ttsProviders = {
-    AllTalk: AllTalkTtsProvider,
-    Azure: AzureTtsProvider,
-    Coqui: CoquiTtsProvider,
-    'CosyVoice (Unofficial)': CosyVoiceProvider,
-    Edge: EdgeTtsProvider,
-    ElevenLabs: ElevenLabsTtsProvider,
-    'Google Translate': GoogleTranslateTtsProvider,
-    GSVI: GSVITtsProvider,
-    'GPT-SoVITS-V2 (Unofficial)': GptSovitsV2Provider,
-    Kokoro: KokoroTtsProvider,
-    Novel: NovelTtsProvider,
-    OpenAI: OpenAITtsProvider,
-    'OpenAI Compatible': OpenAICompatibleTtsProvider,
-    SBVits2: SBVits2TtsProvider,
-    Silero: SileroTtsProvider,
-    SpeechT5: SpeechT5TtsProvider,
-    System: SystemTtsProvider,
-    VITS: VITSTtsProvider,
-    XTTSv2: XTTSTtsProvider,
+    // AllTalk: AllTalkTtsProvider,
+    // Azure: AzureTtsProvider,
+    // Coqui: CoquiTtsProvider,
+    // 'CosyVoice (Unofficial)': CosyVoiceProvider,
+    // Edge: EdgeTtsProvider,
+    // ElevenLabs: ElevenLabsTtsProvider,
+    // 'Google Translate': GoogleTranslateTtsProvider,
+    // GSVI: GSVITtsProvider,
+    // 'GPT-SoVITS-V2 (Unofficial)': GptSovitsV2Provider,
+    // Kokoro: KokoroTtsProvider,
+    // Novel: NovelTtsProvider,
+    // OpenAI: OpenAITtsProvider,
+    // 'OpenAI Compatible': OpenAICompatibleTtsProvider,
+    // SBVits2: SBVits2TtsProvider,
+    // Silero: SileroTtsProvider,
+    // SpeechT5: SpeechT5TtsProvider,
+    // System: SystemTtsProvider,
+    // VITS: VITSTtsProvider,
+    // XTTSv2: XTTSTtsProvider,
     'TTS WebUI (Unofficial)': TtsWebuiProvider,
 };
 let ttsProvider;
@@ -1169,7 +1150,8 @@ async function initVoiceMapInternal(unrestricted) {
 
 jQuery(async function () {
     async function addExtensionControls() {
-        const settingsHtml = $(await renderExtensionTemplateAsync('tts2', 'settings'));
+        // const settingsHtml = $(await renderExtensionTemplateAsync('tts2', 'settings'));
+        const settingsHtml = $(await renderExtensionTemplateAsync('tts', 'settings'));
         $('#tts_container').append(settingsHtml);
         $('#tts_refresh').on('click', onRefreshClick);
         $('#tts_enabled').on('click', onEnableClick);

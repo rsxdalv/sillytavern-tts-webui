@@ -68,26 +68,7 @@ export function getPreviewString(lang) {
 }
 
 const ttsProviders = {
-    // AllTalk: AllTalkTtsProvider,
-    // Azure: AzureTtsProvider,
-    // Coqui: CoquiTtsProvider,
-    // 'CosyVoice (Unofficial)': CosyVoiceProvider,
-    // Edge: EdgeTtsProvider,
-    // ElevenLabs: ElevenLabsTtsProvider,
-    // 'Google Translate': GoogleTranslateTtsProvider,
-    // GSVI: GSVITtsProvider,
-    // 'GPT-SoVITS-V2 (Unofficial)': GptSovitsV2Provider,
-    // Kokoro: KokoroTtsProvider,
-    // Novel: NovelTtsProvider,
-    // OpenAI: OpenAITtsProvider,
-    // 'OpenAI Compatible': OpenAICompatibleTtsProvider,
-    // SBVits2: SBVits2TtsProvider,
-    // Silero: SileroTtsProvider,
-    // SpeechT5: SpeechT5TtsProvider,
-    // System: SystemTtsProvider,
-    // VITS: VITSTtsProvider,
-    // XTTSv2: XTTSTtsProvider,
-    'TTS WebUI (Unofficial)': TtsWebuiProvider,
+    'TTS WebUI (Chatterbox)': TtsWebuiProvider,
 };
 let ttsProvider;
 let ttsProviderName;

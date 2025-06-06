@@ -249,7 +249,6 @@ let audioJobQueue = [];
 let currentAudioJob;
 let audioPaused = false;
 let audioQueueProcessorReady = true;
-
 /**
  * Play audio data from audio job object.
  * @param {AudioJob} audioJob Audio job object
@@ -260,27 +259,104 @@ async function playAudioData(audioJob) {
     // Since current audio job can be cancelled, don't playback if it is null
     if (currentAudioJob == null) {
         console.log('Cancelled TTS playback because currentAudioJob was null');
+        return;
     }
-    if (audioBlob instanceof Blob) {
-        const srcUrl = await getBase64Async(audioBlob);
-
-        // VRM lip sync
-        if (extension_settings.vrm?.enabled && typeof window['vrmLipSync'] === 'function') {
-            await window['vrmLipSync'](audioBlob, char);
+    
+    // Clean up previous event listeners and audio state
+    audioElement.removeEventListener('ended', completeCurrentAudioJob);
+    audioElement.removeEventListener('canplay', handleCanPlayGlobal);
+    audioElement.removeEventListener('loadstart', handleLoadStart);
+    audioElement.removeEventListener('error', handleAudioError);
+    
+    // Stop any current playback
+    try {
+        audioElement.pause();
+    } catch (e) {
+        console.debug('Error pausing audio:', e);
+    }
+    audioElement.currentTime = 0;
+    
+    // Add error handler first
+    function handleAudioError(event) {
+        console.error('Audio error:', event);
+        completeCurrentAudioJob();
+    }
+    
+    // Add load start handler to track loading
+    function handleLoadStart() {
+        console.debug('Audio loading started');
+    }
+    
+    // Set up the source first
+    try {
+        if (audioBlob instanceof Blob) {
+            // Check if blob is empty or invalid
+            if (audioBlob.size === 0) {
+                console.warn('Received empty audio blob, skipping playback');
+                completeCurrentAudioJob();
+                return;
+            }
+            
+            const srcUrl = await getBase64Async(audioBlob);
+            
+            // VRM lip sync
+            if (extension_settings.vrm?.enabled && typeof window['vrmLipSync'] === 'function') {
+                await window['vrmLipSync'](audioBlob, char);
+            }
+            
+            audioElement.src = srcUrl;
+        } else if (typeof audioBlob === 'string') {
+            if (!audioBlob || audioBlob.trim() === '') {
+                console.warn('Received empty audio URL, skipping playback');
+                completeCurrentAudioJob();
+                return;
+            }
+            audioElement.src = audioBlob;
+        } else {
+            throw new Error(`TTS received invalid audio data type ${typeof audioBlob}`);
         }
-
-        audioElement.src = srcUrl;
-    } else if (typeof audioBlob === 'string') {
-        audioElement.src = audioBlob;
-    } else {
-        throw `TTS received invalid audio data type ${typeof audioBlob}`;
+    } catch (error) {
+        console.error('Error setting audio source:', error);
+        completeCurrentAudioJob();
+        return;
     }
+    
+    // Add event listeners after setting the source
     audioElement.addEventListener('ended', completeCurrentAudioJob);
-    audioElement.addEventListener('canplay', () => {
-        console.debug('Starting TTS playback');
-        audioElement.playbackRate = extension_settings.tts.playback_rate;
-        audioElement.play();
-    });
+    audioElement.addEventListener('canplay', handleCanPlayGlobal, { once: true }); // Only fire once
+    audioElement.addEventListener('loadstart', handleLoadStart);
+    audioElement.addEventListener('error', handleAudioError);
+}
+
+// Global handler to avoid creating multiple functions
+function handleCanPlayGlobal() {
+    // Double-check that we still have a current job
+    if (!currentAudioJob) {
+        console.debug('No current audio job, skipping playback');
+        return;
+    }
+    
+    // Check if audio is already playing
+    if (!audioElement.paused) {
+        console.debug('Audio already playing, skipping duplicate play request');
+        return;
+    }
+    
+    console.debug('Starting TTS playback');
+    audioElement.playbackRate = extension_settings.tts.playback_rate || 1.0;
+    
+    // Use a promise to handle the play request properly
+    const playPromise = audioElement.play();
+    
+    if (playPromise !== undefined) {
+        playPromise.catch(error => {
+            // Only log if it's not an AbortError (which is expected when switching audio quickly)
+            if (error.name !== 'AbortError') {
+                console.error('Audio play failed:', error);
+            }
+            completeCurrentAudioJob();
+        });
+    }
 }
 
 window['tts_preview'] = function (id) {

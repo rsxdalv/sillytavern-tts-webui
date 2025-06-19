@@ -413,7 +413,7 @@ class TtsWebuiProvider {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: wavSampleRate });
 
         // Load the PCM processor from separate file
-        const processorUrl = './scripts/extensions/tts/lib/pcm-processor.js';
+        const processorUrl = './scripts/extensions/third-party/sillytavern-extension-tts-webui/pcm-processor.js';
         await this.audioContext.audioWorklet.addModule(processorUrl);
         this.audioWorkletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor');
         this.audioWorkletNode.connect(this.audioContext.destination);

@@ -32,11 +32,14 @@ class TtsWebuiProvider {
         cpu_offload: false,
         chunked: true,
         cache_voice: false,
-        tokens_per_slice: 1000,
-        remove_milliseconds: 45,
-        remove_milliseconds_start: 25,
-        chunk_overlap_method: 'zero',
+        tokens_per_slice: 1000, // deprecated
+        remove_milliseconds: 45, // deprecated
+        remove_milliseconds_start: 25, // deprecated
+        chunk_overlap_method: 'zero', // deprecated
         seed: -1,
+        use_compilation: false,
+        max_new_tokens: 1000,
+        max_cache_len: 1500,
     };
 
     get settingsHtml() {
@@ -162,38 +165,25 @@ class TtsWebuiProvider {
                     <span>CPU Offload</span>
                 </label>
             </div>
-            <div class="flex1">
-                <!-- Empty for spacing -->
-            </div>
-        </div>
-        
-        <hr>
-        <h4 class="textAlignCenter">Streaming (Advanced Settings)</h4>
-        
-        <div class="flex gap10px marginBot10">
             <div class="flex1 flexFlowColumn">
-                <label for="tts_webui_tokens_per_slice">Tokens Per Slice: <span id="tts_webui_tokens_per_slice_output">${this.defaultSettings.tokens_per_slice}</span></label>
-                <input id="tts_webui_tokens_per_slice" type="range" value="${this.defaultSettings.tokens_per_slice}" min="15" max="1000" step="1" />
-            </div>
-            <div class="flex1 flexFlowColumn">
-                <label for="tts_webui_chunk_overlap_method">Chunk Overlap Method:</label>
-                <select id="tts_webui_chunk_overlap_method">
-                    <option value="zero" ${this.defaultSettings.chunk_overlap_method === 'zero' ? 'selected' : ''}>Zero</option>
-                    <option value="full" ${this.defaultSettings.chunk_overlap_method === 'full' ? 'selected' : ''}>Full</option>
-                </select>
+                <label for="tts_webui_use_compilation" class="checkbox_label alignItemsCenter flexGap5">
+                    <input id="tts_webui_use_compilation" type="checkbox" />
+                    <span>Use compilation</span>
+                </label>
             </div>
         </div>
         
         <div class="flex gap10px marginBot10">
             <div class="flex1 flexFlowColumn">
-                <label for="tts_webui_remove_milliseconds">Remove Milliseconds: <span id="tts_webui_remove_milliseconds_output">${this.defaultSettings.remove_milliseconds}</span></label>
-                <input id="tts_webui_remove_milliseconds" type="range" value="${this.defaultSettings.remove_milliseconds}" min="0" max="100" step="1" />
+                <label for="tts_webui_max_new_tokens">Max new tokens: <span id="tts_webui_max_new_tokens_output">${this.defaultSettings.max_new_tokens}</span></label>
+                <input id="tts_webui_max_new_tokens" type="range" value="${this.defaultSettings.max_new_tokens}" min="100" max="1000" step="10" />
             </div>
             <div class="flex1 flexFlowColumn">
-                <label for="tts_webui_remove_milliseconds_start">Remove Milliseconds Start: <span id="tts_webui_remove_milliseconds_start_output">${this.defaultSettings.remove_milliseconds_start}</span></label>
-                <input id="tts_webui_remove_milliseconds_start" type="range" value="${this.defaultSettings.remove_milliseconds_start}" min="0" max="100" step="1" />
+                <label for="tts_webui_max_cache_len">Cache length: <span id="tts_webui_max_cache_len_output">${this.defaultSettings.max_cache_len}</span></label>
+                <input id="tts_webui_max_cache_len" type="range" value="${this.defaultSettings.max_cache_len}" min="200" max="1500" step="10" />
             </div>
-        </div>`;
+        </div>
+        `;
         return html;
     }
 
@@ -279,6 +269,15 @@ class TtsWebuiProvider {
         $('#tts_webui_seed').val(this.settings.seed);
         $('#tts_webui_seed').on('input', () => { this.onSettingsChange(); });
 
+        $('#tts_webui_use_compilation').prop('checked', this.settings.use_compilation);
+        $('#tts_webui_use_compilation').on('change', () => { this.onSettingsChange(); });
+
+        $('#tts_webui_max_new_tokens').val(this.settings.max_new_tokens);
+        $('#tts_webui_max_new_tokens').on('input', () => { this.onSettingsChange(); });
+
+        $('#tts_webui_max_cache_len').val(this.settings.max_cache_len);
+        $('#tts_webui_max_cache_len').on('input', () => { this.onSettingsChange(); });
+
         // Update output labels
         $('#tts_webui_volume_output').text(this.settings.volume);
         $('#tts_webui_desired_length_output').text(this.settings.desired_length);
@@ -289,6 +288,8 @@ class TtsWebuiProvider {
         $('#tts_webui_tokens_per_slice_output').text(this.settings.tokens_per_slice);
         $('#tts_webui_remove_milliseconds_output').text(this.settings.remove_milliseconds);
         $('#tts_webui_remove_milliseconds_start_output').text(this.settings.remove_milliseconds_start);
+        $('#tts_webui_max_new_tokens_output').text(this.settings.max_new_tokens);
+        $('#tts_webui_max_cache_len_output').text(this.settings.max_cache_len);
 
         await this.checkReady();
 
@@ -318,6 +319,9 @@ class TtsWebuiProvider {
         this.settings.remove_milliseconds_start = Number($('#tts_webui_remove_milliseconds_start').val());
         this.settings.chunk_overlap_method = String($('#tts_webui_chunk_overlap_method').val());
         this.settings.seed = parseInt($('#tts_webui_seed').val()) || -1;
+        this.settings.use_compilation = $('#tts_webui_use_compilation').is(':checked');
+        this.settings.max_new_tokens = Number($('#tts_webui_max_new_tokens').val());
+        this.settings.max_cache_len = Number($('#tts_webui_max_cache_len').val());
 
         // Apply volume change immediately
         this.setVolume(this.settings.volume);
@@ -332,6 +336,8 @@ class TtsWebuiProvider {
         $('#tts_webui_tokens_per_slice_output').text(this.settings.tokens_per_slice);
         $('#tts_webui_remove_milliseconds_output').text(this.settings.remove_milliseconds);
         $('#tts_webui_remove_milliseconds_start_output').text(this.settings.remove_milliseconds_start);
+        $('#tts_webui_max_new_tokens_output').text(this.settings.max_new_tokens);
+        $('#tts_webui_max_cache_len_output').text(this.settings.max_cache_len);
 
         saveTtsProviderSettings();
     }
@@ -513,6 +519,9 @@ class TtsWebuiProvider {
             'remove_milliseconds_start',
             'chunk_overlap_method',
             'seed',
+            'use_compilation',
+            'max_new_tokens',
+            'max_cache_len',
         ];
         const getParams = settings => Object.fromEntries(
             Object.entries(settings).filter(([key]) =>

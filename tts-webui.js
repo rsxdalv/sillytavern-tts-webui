@@ -1,4 +1,5 @@
-import { getPreviewString, saveTtsProviderSettings } from './index.js';
+// import { getPreviewString, saveTtsProviderSettings } from './index.js';
+const { getPreviewString, saveTtsProviderSettings } = await import('/scripts/extensions/tts/index.js')
 
 export { TtsWebuiProvider };
 

@@ -3,6 +3,32 @@ const { getPreviewString, saveTtsProviderSettings } = await import('/scripts/ext
 
 export { TtsWebuiProvider };
 
+const SUPPORTED_LANGUAGES = {
+  ar: "Arabic 🇸🇦",
+  da: "Danish 🇩🇰",
+  de: "German 🇩🇪",
+  el: "Greek 🇬🇷",
+  en: "English 🇬🇧",
+  es: "Spanish 🇪🇸",
+  fi: "Finnish 🇫🇮",
+  fr: "French 🇫🇷",
+  he: "Hebrew 🇮🇱",
+  hi: "Hindi 🇮🇳",
+  it: "Italian 🇮🇹",
+  ja: "Japanese 🇯🇵",
+  ko: "Korean 🇰🇷",
+  ms: "Malay 🇲🇾",
+  nl: "Dutch 🇳🇱",
+  no: "Norwegian 🇳🇴",
+  pl: "Polish 🇵🇱",
+  pt: "Portuguese 🇧🇷",
+  ru: "Russian 🇷🇺",
+  sv: "Swedish 🇸🇪",
+  sw: "Swahili 🇰🇪",
+  tr: "Turkish 🇹🇷",
+  zh: "Chinese 🇨🇳",
+};
+
 class TtsWebuiProvider {
     settings;
     voices = [];
@@ -29,7 +55,7 @@ class TtsWebuiProvider {
         cfg_weight: 0.5,
         temperature: 0.8,
         device: 'auto',
-        dtype: 'float32',
+        dtype: 'bfloat16',
         cpu_offload: false,
         chunked: true,
         cache_voice: false,
@@ -38,9 +64,13 @@ class TtsWebuiProvider {
         remove_milliseconds_start: 25, // deprecated
         chunk_overlap_method: 'zero', // deprecated
         seed: -1,
-        use_compilation: false,
+        // use_compilation: false,
+        initial_forward_pass_backend: "eager",
+        generate_token_backend: "cudagraphs-manual",
         max_new_tokens: 1000,
         max_cache_len: 1500,
+        language_id: "en",
+        model_name: "just_a_placeholder",
     };
 
     get settingsHtml() {
@@ -166,14 +196,52 @@ class TtsWebuiProvider {
                     <span>CPU Offload</span>
                 </label>
             </div>
+        </div>
+
+        <div class="flex gap10px marginBot10">
             <div class="flex1 flexFlowColumn">
-                <label for="tts_webui_use_compilation" class="checkbox_label alignItemsCenter flexGap5">
-                    <input id="tts_webui_use_compilation" type="checkbox" />
-                    <span>Use compilation</span>
-                </label>
+                <label for="tts_webui_initial_forward_pass_backend">Initial Forward Pass Backend:</label>
+                <select id="tts_webui_initial_forward_pass_backend">
+                    ${[
+                        ["Eager", "eager"],
+                        ["Cudagraphs", "cudagraphs"],
+                    ].map(([label, value]) => `<option value="${value}" ${this.defaultSettings.initial_forward_pass_backend === value ? 'selected' : ''}>${label}</option>`).join('')}
+                </select>
+            </div>
+            <div class="flex1 flexFlowColumn">
+                <label for="tts_webui_generate_token_backend">Generate Token Backend:</label>
+                <select id="tts_webui_generate_token_backend">
+                    ${[
+                        ["Cudagraphs Manual", "cudagraphs-manual"],
+                        ["Eager", "eager"],
+                        ["Cudagraphs", "cudagraphs"],
+                        ["Inductor", "inductor"],
+                        ["Cudagraphs Strided", "cudagraphs-strided"],
+                        ["Inductor Strided", "inductor-strided"],
+                    ].map(([label, value]) => `<option value="${value}" ${this.defaultSettings.generate_token_backend === value ? 'selected' : ''}>${label}</option>`).join('')}
+                </select>
             </div>
         </div>
-        
+
+        <div class="flex gap10px marginBot10">
+            <div class="flex1 flexFlowColumn">
+                <label for="tts_webui_model_name">Model Name (for TTS WebUI):</label>
+                <select id="tts_webui_model_name">
+                    ${[
+                        ["English", "just_a_placeholder"],
+                        ["Multilingual", "multilingual"],
+                    ].map(([label, value]) => `<option value="${value}" ${this.defaultSettings.model_name === value ? 'selected' : ''}>${label}</option>`).join('')}
+                </select>
+            </div>
+
+            <div class="flex1 flexFlowColumn">
+                <label for="tts_webui_language_id">Language ID:</label>
+                <select id="tts_webui_language_id">
+                    ${Object.entries(SUPPORTED_LANGUAGES).map(([value, label]) => `<option value="${value}" ${this.defaultSettings.language_id === value ? 'selected' : ''}>${label}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+
         <div class="flex gap10px marginBot10">
             <div class="flex1 flexFlowColumn">
                 <label for="tts_webui_max_new_tokens">Max new tokens: <span id="tts_webui_max_new_tokens_output">${this.defaultSettings.max_new_tokens}</span></label>
@@ -270,8 +338,20 @@ class TtsWebuiProvider {
         $('#tts_webui_seed').val(this.settings.seed);
         $('#tts_webui_seed').on('input', () => { this.onSettingsChange(); });
 
-        $('#tts_webui_use_compilation').prop('checked', this.settings.use_compilation);
-        $('#tts_webui_use_compilation').on('change', () => { this.onSettingsChange(); });
+        // $('#tts_webui_use_compilation').prop('checked', this.settings.use_compilation);
+        // $('#tts_webui_use_compilation').on('change', () => { this.onSettingsChange(); });
+
+        $('#tts_webui_initial_forward_pass_backend').val(this.settings.initial_forward_pass_backend);
+        $('#tts_webui_initial_forward_pass_backend').on('change', () => { this.onSettingsChange(); });
+
+        $('#tts_webui_generate_token_backend').val(this.settings.generate_token_backend);
+        $('#tts_webui_generate_token_backend').on('change', () => { this.onSettingsChange(); });
+
+        $('#tts_webui_model_name').val(this.settings.model_name);
+        $('#tts_webui_model_name').on('input', () => { this.onSettingsChange(); });
+
+        $('#tts_webui_language_id').val(this.settings.language_id);
+        $('#tts_webui_language_id').on('input', () => { this.onSettingsChange(); });
 
         $('#tts_webui_max_new_tokens').val(this.settings.max_new_tokens);
         $('#tts_webui_max_new_tokens').on('input', () => { this.onSettingsChange(); });
@@ -320,7 +400,11 @@ class TtsWebuiProvider {
         this.settings.remove_milliseconds_start = Number($('#tts_webui_remove_milliseconds_start').val());
         this.settings.chunk_overlap_method = String($('#tts_webui_chunk_overlap_method').val());
         this.settings.seed = parseInt($('#tts_webui_seed').val()) || -1;
-        this.settings.use_compilation = $('#tts_webui_use_compilation').is(':checked');
+        // this.settings.use_compilation = $('#tts_webui_use_compilation').is(':checked');
+        this.settings.initial_forward_pass_backend = String($('#tts_webui_initial_forward_pass_backend').val());
+        this.settings.generate_token_backend = String($('#tts_webui_generate_token_backend').val());
+        this.settings.model_name = String($('#tts_webui_model_name').val());
+        this.settings.language_id = String($('#tts_webui_language_id').val());
         this.settings.max_new_tokens = Number($('#tts_webui_max_new_tokens').val());
         this.settings.max_cache_len = Number($('#tts_webui_max_cache_len').val());
 
@@ -520,7 +604,11 @@ class TtsWebuiProvider {
             'remove_milliseconds_start',
             'chunk_overlap_method',
             'seed',
-            'use_compilation',
+            // 'use_compilation',
+            'initial_forward_pass_backend',
+            'generate_token_backend',
+            'model_name',
+            'language_id',
             'max_new_tokens',
             'max_cache_len',
         ];

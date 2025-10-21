@@ -47,6 +47,7 @@ class TtsWebuiProvider {
         available_voices: [''],
         provider_endpoint: 'http://127.0.0.1:7778/v1/audio/speech',
         streaming: true,
+        streaming_mode: 'worklet', // 'worklet' | 'blob'
         stream_chunk_size: 100,
         desired_length: 80,
         max_length: 200,
@@ -105,6 +106,13 @@ class TtsWebuiProvider {
                     <input id="tts_webui_streaming" type="checkbox" />
                     <span>Streaming</span>
                 </label>
+            </div>
+            <div class="flex1 flexFlowColumn">
+                <label for="tts_webui_streaming_mode">Streaming Mode:</label>
+                <select id="tts_webui_streaming_mode">
+                    <option value="worklet" ${this.defaultSettings.streaming_mode === 'worklet' ? 'selected' : ''}>Worklet</option>
+                    <option value="blob" ${this.defaultSettings.streaming_mode === 'blob' ? 'selected' : ''}>Blob</option>
+                </select>
             </div>
             <div class="flex1 flexFlowColumn">
                 <label for="tts_webui_volume">Volume: <span id="tts_webui_volume_output">${this.defaultSettings.volume}</span></label>
@@ -285,6 +293,9 @@ class TtsWebuiProvider {
         $('#tts_webui_streaming').prop('checked', this.settings.streaming);
         $('#tts_webui_streaming').on('change', () => { this.onSettingsChange(); });
 
+        $('#tts_webui_streaming_mode').val(this.settings.streaming_mode);
+        $('#tts_webui_streaming_mode').on('change', () => { this.onSettingsChange(); });
+
         $('#tts_webui_volume').val(this.settings.volume);
         $('#tts_webui_volume').on('input', () => {
             this.onSettingsChange();
@@ -384,6 +395,7 @@ class TtsWebuiProvider {
         this.settings.available_voices = String($('#tts_webui_voices').val()).split(',');
         this.settings.volume = Number($('#tts_webui_volume').val());
         this.settings.streaming = $('#tts_webui_streaming').is(':checked');
+        this.settings.streaming_mode = String($('#tts_webui_streaming_mode').val());
         this.settings.stream_chunk_size = Number($('#tts_webui_stream_chunk_size').val());
         this.settings.desired_length = Number($('#tts_webui_desired_length').val());
         this.settings.max_length = Number($('#tts_webui_max_length').val());
@@ -504,6 +516,29 @@ class TtsWebuiProvider {
         this.audioWorkletNode.connect(this.audioContext.destination);
     }
 
+    async processStreamingAudio(response) {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const mode = this.settings.streaming_mode || 'worklet'; // 'worklet' | 'html5' | 'blob'
+        // const mode = this.settings.playbackMode || 'blob'; // 'worklet' | 'html5' | 'blob'
+        
+        switch (mode) {
+            case 'worklet':
+                await this.streamToAudioWorklet(response);
+                break;
+            // case 'html5':
+            //     // tts-webui.js:588 Uncaught (in promise) NotSupportedError: Failed to execute 'addSourceBuffer' on 'MediaSource': The type provided ('audio/wav; codecs=1') is unsupported.
+            //     await this.streamToHtml5Audio(response);
+            //     break;
+            case 'blob':
+                await this.streamToBlobUrl(response);
+                break;
+            default:
+                throw new Error(`Unknown playback mode: ${mode}`);
+        }
+    }
+
     parseWavHeader(buffer) {
         const view = new DataView(buffer);
         // Sample rate is at bytes 24-27 (little endian)
@@ -516,11 +551,7 @@ class TtsWebuiProvider {
         return { sampleRate, channels, bitsPerSample };
     }
 
-    async processStreamingAudio(response) {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
+    async streamToAudioWorklet(response) {
         const reader = response.body.getReader();
         let headerParsed = false;
         let wavInfo = null;
@@ -555,6 +586,102 @@ class TtsWebuiProvider {
 
         const firstChunk = await reader.read();
         await processStream(firstChunk);
+    }
+
+    async streamToHtml5Audio(response) {
+        const mediaSource = new MediaSource();
+        const audioElement = document.createElement('audio');
+        audioElement.controls = true;
+        audioElement.src = URL.createObjectURL(mediaSource);
+        document.body.appendChild(audioElement);
+
+        await new Promise((resolve) => {
+            mediaSource.addEventListener('sourceopen', async () => {
+                const sourceBuffer = mediaSource.addSourceBuffer('audio/wav; codecs=1');
+                const reader = response.body.getReader();
+
+                const pump = async () => {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        mediaSource.endOfStream();
+                        resolve();
+                        return;
+                    }
+                    await new Promise(r => {
+                        sourceBuffer.addEventListener('updateend', r, { once: true });
+                        sourceBuffer.appendBuffer(value);
+                    });
+                    await pump();
+                };
+                await pump();
+            }, { once: true });
+        });
+
+        audioElement.play();
+    }
+
+    async streamToBlobUrl(response) {
+        const chunks = [];
+        const reader = response.body.getReader();
+        let audio = null;
+        let cumulativeDuration = 0;
+        const headerChunkSize = 44; // Standard WAV header size
+        const splitChunkSize = 65529; // 64kb - 7 bytes due to uvicorn streaming implementation
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            chunks.push(value);
+            console.log(`Received chunk of size ${value.length}, total chunks: ${chunks.length}`);
+
+            if (value.length === headerChunkSize || value.length === splitChunkSize) {
+                // Skip processing for header-only or split chunks
+                continue;
+            }
+
+            // Capture current audio's full duration if it exists and is valid
+            if (hasValidAudioDuration(audio)) {
+                cumulativeDuration = audio.duration;
+                console.log(`Captured duration: ${cumulativeDuration}s from chunk ${chunks.length - 1}`);
+            }
+            
+            // Create blob with ALL chunks accumulated so far
+            const blob = new Blob(chunks, { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            
+            // Create new audio element
+            const newAudio = new Audio(url);
+            newAudio.controls = true;
+            document.body.appendChild(newAudio);
+            
+            // Wait for metadata to load before we can use duration/seek
+            await new Promise(resolve => {
+                newAudio.addEventListener('loadedmetadata', resolve, { once: true });
+            });
+            
+            if (audio && cumulativeDuration > 0) {
+                // Skip to where the previous audio left off
+                newAudio.currentTime = cumulativeDuration;
+                console.log(`Seeking to ${cumulativeDuration}s in chunk ${chunks.length} (total duration: ${newAudio.duration}s)`);
+                
+                // Chain: play next audio when current ends
+                audio.addEventListener('ended', () => {
+                    newAudio.play();
+                    console.log(`Chained to chunk ${chunks.length}`);
+                });
+            } else {
+                // First audio, play immediately
+                newAudio.play();
+                console.log(`Started playing chunk ${chunks.length}`);
+            }
+            
+            audio = newAudio;
+        }
+
+        function hasValidAudioDuration(audio) {
+            return audio && audio.duration && isFinite(audio.duration);
+        }
     }
 
     async previewTtsVoice(voiceId) {

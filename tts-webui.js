@@ -46,6 +46,7 @@ class TtsWebuiProvider {
         volume: 1.0,
         available_voices: [''],
         provider_endpoint: 'http://127.0.0.1:7778/v1/audio/speech',
+        api_key: '',
         streaming: true,
         streaming_mode: 'worklet', // 'worklet' | 'blob'
         stream_chunk_size: 100,
@@ -83,9 +84,9 @@ class TtsWebuiProvider {
                 <label for="tts_webui_endpoint">Provider Endpoint:</label>
                 <input id="tts_webui_endpoint" type="text" class="text_pole" maxlength="500" value="${this.defaultSettings.provider_endpoint}"/>
             </div>
-            <div id="tts_webui_key" class="menu_button menu_button_icon padding10">
-                <i class="fa-solid fa-key"></i>
-                <span>API Key</span>
+            <div class="flex1 flexFlowColumn">
+                <label for="tts_webui_api_key">API Key:</label>
+                <input id="tts_webui_api_key" type="password" class="text_pole" maxlength="200" value="${this.defaultSettings.api_key}" placeholder="Optional — leave blank if not required"/>
             </div>
         </div>
         
@@ -284,6 +285,9 @@ class TtsWebuiProvider {
         $('#tts_webui_endpoint').val(this.settings.provider_endpoint);
         $('#tts_webui_endpoint').on('input', () => { this.onSettingsChange(); });
 
+        $('#tts_webui_api_key').val(this.settings.api_key);
+        $('#tts_webui_api_key').on('input', () => { this.onSettingsChange(); });
+
         $('#tts_webui_model').val(this.settings.model);
         $('#tts_webui_model').on('input', () => { this.onSettingsChange(); });
 
@@ -391,6 +395,7 @@ class TtsWebuiProvider {
     onSettingsChange() {
         // Update dynamically
         this.settings.provider_endpoint = String($('#tts_webui_endpoint').val());
+        this.settings.api_key = String($('#tts_webui_api_key').val() || '').trim();
         this.settings.model = String($('#tts_webui_model').val());
         this.settings.available_voices = String($('#tts_webui_voices').val()).split(',');
         this.settings.volume = Number($('#tts_webui_volume').val());
@@ -478,7 +483,11 @@ class TtsWebuiProvider {
         // Try to fetch voices from the provider endpoint
         try {
             const voicesEndpoint = this.settings.provider_endpoint.replace('/speech', '/voices/' + this.settings.model);
-            const response = await fetch(voicesEndpoint);
+            const voiceHeaders = {};
+            if (this.settings.api_key) {
+                voiceHeaders['Authorization'] = `Bearer ${this.settings.api_key}`;
+            }
+            const response = await fetch(voicesEndpoint, { headers: voiceHeaders });
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
@@ -773,6 +782,10 @@ class TtsWebuiProvider {
 
         if (streaming) {
             headers['Cache-Control'] = 'no-cache';
+        }
+
+        if (settings.api_key) {
+            headers['Authorization'] = `Bearer ${settings.api_key}`;
         }
 
         const response = await fetch(settings.provider_endpoint, {

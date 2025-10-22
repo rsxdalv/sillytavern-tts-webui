@@ -520,9 +520,19 @@ class TtsWebuiProvider {
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        const mode = this.settings.streaming_mode || 'worklet'; // 'worklet' | 'html5' | 'blob'
-        // const mode = this.settings.playbackMode || 'blob'; // 'worklet' | 'html5' | 'blob'
-        
+
+        function isWorkletSupported() {
+            return !!(window.AudioWorkletNode && window.AudioContext);
+        }
+
+        function getSupportedMode(settingsMode) {
+            if (settingsMode === 'worklet' && !isWorkletSupported()) {
+                return 'blob';
+            }
+            return settingsMode;
+        }
+        const mode = getSupportedMode(this.settings.streaming_mode || 'worklet');
+
         switch (mode) {
             case 'worklet':
                 await this.streamToAudioWorklet(response);

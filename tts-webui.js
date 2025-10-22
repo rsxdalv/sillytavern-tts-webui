@@ -653,6 +653,7 @@ class TtsWebuiProvider {
             // Create new audio element
             const newAudio = new Audio(url);
             newAudio.controls = true;
+            newAudio.volume = Math.min(this.currentVolume, 1.0); // HTML audio element max is 1.0
             document.body.appendChild(newAudio);
             
             // Wait for metadata to load before we can use duration/seek
